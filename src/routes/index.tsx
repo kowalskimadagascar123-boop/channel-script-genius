@@ -2,6 +2,8 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { Sparkles, Wand2, Clapperboard, Loader2, Copy, Check, Youtube, Zap, Clock, Target } from "lucide-react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { generateScript } from "@/lib/script.functions";
 import { toast } from "sonner";
 import { Toaster } from "@/components/ui/sonner";
