@@ -38,8 +38,10 @@ ESTRUTURA DO ROTEIRO (em markdown):
 4. **📖 Desenvolvimento** — blocos numerados com fala + indicações de tela
 5. **💬 CTA natural** (pedido de inscrição/like sem soar forçado, integrado ao tema)
 6. **👋 Encerramento** (gancho pro próximo vídeo)
-7. **🖼️ Ideias de thumbnail** (2-3 opções descritas visualmente)
-8. **🏷️ Tags e descrição** sugeridas
+7. **🖼️ Ideias de thumbnail** (2-3 opções descritas visualmente — texto curto e expressão facial)
+8. **📝 Descrição do vídeo** (pronta pra copiar e colar no YouTube — com quebras de linha, emojis, e se fizer sentido inclua blocos de LINKS, redes sociais, ou trechos copiáveis em \`\`\`código\`\`\`)
+9. **📌 Comentário fixado** (escrito como se fosse o próprio criador comentando — engaja, faz pergunta, e se o vídeo envolve site/jogo/ferramenta/código, INCLUI o link ou trecho copiável formatado em bloco de código markdown)
+10. **🏷️ Tags** (lista separada por vírgula, otimizada pra SEO)
 
 Importante: o texto entre aspas/blocos é exatamente o que a pessoa vai FALAR. Escreva pra ser lido em voz alta.`;
 
