@@ -165,19 +165,20 @@ function Home() {
           </div>
           <span className="font-display text-lg font-semibold tracking-tight">RoteiroTube</span>
         </div>
-        <a
-          href="#gerador"
-          className="rounded-full border border-border bg-card/60 px-4 py-2 text-sm font-medium backdrop-blur transition hover:bg-card"
+        <button
+          onClick={logout}
+          className="inline-flex items-center gap-2 rounded-full border border-border bg-card/60 px-4 py-2 text-sm font-medium backdrop-blur transition hover:bg-card"
         >
-          Criar roteiro
-        </a>
+          <LogOut className="h-4 w-4" />
+          Sair
+        </button>
       </header>
 
       {/* Hero */}
       <section className="container mx-auto px-6 pt-12 pb-16 text-center">
         <div className="mx-auto inline-flex items-center gap-2 rounded-full border border-border bg-card/60 px-4 py-1.5 text-xs font-medium text-muted-foreground backdrop-blur">
           <Sparkles className="h-3.5 w-3.5 text-primary" />
-          100% grátis · sem cadastro · IA em português
+          Personalizado pro seu canal · IA em português
         </div>
         <h1 className="mx-auto mt-6 max-w-4xl text-5xl font-bold leading-[1.05] sm:text-6xl md:text-7xl">
           Roteiros de YouTube <span className="text-brand-gradient">prontos em segundos</span>
