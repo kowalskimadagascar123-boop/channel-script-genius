@@ -88,6 +88,13 @@ function Home() {
     loadProfile().then((p) => {
       if (!p?.onboarding_completed) navigate({ to: "/onboarding" });
     });
+    if (typeof window !== "undefined") {
+      const pending = sessionStorage.getItem("pendingTopic");
+      if (pending) {
+        setTopic(pending);
+        sessionStorage.removeItem("pendingTopic");
+      }
+    }
   }, [loadProfile, navigate]);
 
   const logout = async () => {
