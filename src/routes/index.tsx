@@ -2,6 +2,8 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { Sparkles, Wand2, Clapperboard, Loader2, Copy, Check, Youtube, Zap, Clock, Target } from "lucide-react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { generateScript } from "@/lib/script.functions";
 import { toast } from "sonner";
 import { Toaster } from "@/components/ui/sonner";
@@ -247,9 +249,9 @@ function Home() {
                 {copied ? "Copiado" : "Copiar"}
               </button>
             </div>
-            <pre className="whitespace-pre-wrap font-sans text-[15px] leading-relaxed text-foreground/90">
-              {script}
-            </pre>
+            <div className="prose prose-invert max-w-none prose-headings:font-display prose-headings:tracking-tight prose-h1:text-2xl prose-h2:text-xl prose-h2:mt-6 prose-h3:text-lg prose-p:leading-relaxed prose-strong:text-primary prose-li:my-1 prose-hr:border-border">
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>{script}</ReactMarkdown>
+            </div>
           </div>
         )}
       </section>

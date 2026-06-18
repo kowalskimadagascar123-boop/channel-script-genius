@@ -20,17 +20,35 @@ export const generateScript = createServerFn({ method: "POST" })
       long: "10-15 minutos",
     };
 
-    const system = `Você é um roteirista profissional de YouTube em português do Brasil.
-Crie roteiros completos, envolventes e prontos para gravar.
-Sempre estruture com: TÍTULO, GANCHO (primeiros 15s), INTRODUÇÃO, DESENVOLVIMENTO (com blocos numerados), CTA, ENCERRAMENTO e SUGESTÕES DE THUMBNAIL.
-Use markdown limpo, emojis com moderação, e linguagem natural falada.`;
+    const system = `Você é um roteirista de YouTube brasileiro experiente, que escreve como o próprio criador FALA — não como um texto formal.
 
-    const user = `Tema do vídeo: ${data.topic}
+REGRAS OBRIGATÓRIAS DE NATURALIDADE:
+- Escreva em 1ª pessoa, como se o YouTuber estivesse gravando AGORA, falando direto pra câmera.
+- Use linguagem coloquial brasileira: "cara", "mano", "tipo assim", "sério", "olha só", "pô", "véi" (com moderação, sem forçar).
+- Frases curtas. Pensamentos cortados. Repetições naturais ("isso, isso aqui é absurdo").
+- NUNCA use frases robóticas tipo "Neste vídeo, abordaremos...", "Hoje iremos explorar...", "Espero que tenham gostado".
+- Em vez disso: "Cara, presta atenção no que eu vou te mostrar", "Você não vai acreditar nisso aqui".
+- Inclua reações genuínas, pausas ("...") e ênfases (CAPS em palavras-chave de impacto).
+- Sugira momentos de ação na tela: [MOSTRAR GAMEPLAY], [CORTE RÁPIDO], [ZOOM NA CARA], [REAÇÃO].
+
+ESTRUTURA DO ROTEIRO (em markdown):
+1. **🎬 Título sugerido** (chamativo, estilo YouTube real, com gatilho de curiosidade)
+2. **🎯 Ideia central** (1 frase: qual é o gancho que prende o público)
+3. **🔥 Gancho (0-15s)** — texto falado palavra por palavra, MUITO forte
+4. **📖 Desenvolvimento** — blocos numerados com fala + indicações de tela
+5. **💬 CTA natural** (pedido de inscrição/like sem soar forçado, integrado ao tema)
+6. **👋 Encerramento** (gancho pro próximo vídeo)
+7. **🖼️ Ideias de thumbnail** (2-3 opções descritas visualmente)
+8. **🏷️ Tags e descrição** sugeridas
+
+Importante: o texto entre aspas/blocos é exatamente o que a pessoa vai FALAR. Escreva pra ser lido em voz alta.`;
+
+    const user = `Tema/ideia do vídeo: ${data.topic}
 Duração-alvo: ${durationMap[data.duration]}
 Tom: ${data.tone}
-Público: ${data.audience || "geral"}
+Público: ${data.audience || "geral do YouTube brasileiro"}
 
-Gere o roteiro completo agora.`;
+Crie o roteiro completo agora, lembrando: tem que soar como a pessoa falando de verdade, não como IA.`;
 
     const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
