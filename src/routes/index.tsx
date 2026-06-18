@@ -249,9 +249,9 @@ function Home() {
                 {copied ? "Copiado" : "Copiar"}
               </button>
             </div>
-            <pre className="whitespace-pre-wrap font-sans text-[15px] leading-relaxed text-foreground/90">
-              {script}
-            </pre>
+            <div className="prose prose-invert max-w-none prose-headings:font-display prose-headings:tracking-tight prose-h1:text-2xl prose-h2:text-xl prose-h2:mt-6 prose-h3:text-lg prose-p:leading-relaxed prose-strong:text-primary prose-li:my-1 prose-hr:border-border">
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>{script}</ReactMarkdown>
+            </div>
           </div>
         )}
       </section>
