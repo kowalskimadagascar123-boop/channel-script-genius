@@ -1,6 +1,9 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
+import { getMyProfile } from "@/lib/profile.functions";
+import { supabase } from "@/integrations/supabase/client";
+import { LogOut } from "lucide-react";
 import {
   Sparkles,
   Wand2,
@@ -71,6 +74,8 @@ type Tone = "casual" | "educativo" | "energetico" | "inspirador" | "humoristico"
 
 function Home() {
   const run = useServerFn(generateScript);
+  const navigate = useNavigate();
+  const loadProfile = useServerFn(getMyProfile);
   const [topic, setTopic] = useState("");
   const [audience, setAudience] = useState("");
   const [duration, setDuration] = useState<Duration>("medium");
@@ -78,6 +83,18 @@ function Home() {
   const [loading, setLoading] = useState(false);
   const [script, setScript] = useState("");
   const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    loadProfile().then((p) => {
+      if (!p?.onboarding_completed) navigate({ to: "/onboarding" });
+    });
+  }, [loadProfile, navigate]);
+
+  const logout = async () => {
+    await supabase.auth.signOut();
+    navigate({ to: "/" });
+  };
+
   const [thumbnail, setThumbnail] = useState<string | null>(null);
   const [thumbnailFinal, setThumbnailFinal] = useState(false);
   const [thumbLoading, setThumbLoading] = useState(false);
