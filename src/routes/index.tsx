@@ -1,4 +1,5 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { useState } from "react";
 import {
   Sparkles,
   Wand2,
@@ -9,7 +10,12 @@ import {
   ImageIcon,
   MessageSquare,
   Mic2,
+  ArrowRight,
+  Search,
+  UserPlus,
+  Pencil,
 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -31,6 +37,24 @@ export const Route = createFileRoute("/")({
 });
 
 function Landing() {
+  const navigate = useNavigate();
+  const [topic, setTopic] = useState("");
+
+  const handleGenerate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const trimmed = topic.trim();
+    if (trimmed.length < 3) return;
+    if (typeof window !== "undefined") {
+      sessionStorage.setItem("pendingTopic", trimmed);
+    }
+    const { data } = await supabase.auth.getSession();
+    if (data.session) {
+      navigate({ to: "/app" });
+    } else {
+      navigate({ to: "/auth" });
+    }
+  };
+
   return (
     <div className="min-h-screen bg-hero">
       {/* Nav */}
@@ -41,12 +65,20 @@ function Landing() {
           </div>
           <span className="font-display text-lg font-semibold tracking-tight">RoteiroTube</span>
         </div>
-        <Link
-          to="/auth"
-          className="rounded-full border border-border bg-card/60 px-4 py-2 text-sm font-medium backdrop-blur transition hover:bg-card"
-        >
-          Entrar
-        </Link>
+        <div className="flex items-center gap-2">
+          <a
+            href="#como-funciona"
+            className="hidden rounded-full px-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground sm:inline-flex"
+          >
+            Como funciona
+          </a>
+          <Link
+            to="/auth"
+            className="rounded-full border border-border bg-card/60 px-4 py-2 text-sm font-medium backdrop-blur transition hover:bg-card"
+          >
+            Entrar
+          </Link>
+        </div>
       </header>
 
       {/* Hero */}
@@ -59,24 +91,37 @@ function Landing() {
           Roteiros de YouTube <span className="text-brand-gradient">do jeito que você fala</span>
         </h1>
         <p className="mx-auto mt-6 max-w-2xl text-lg text-muted-foreground">
-          A gente aprende sobre o seu canal e gera roteiros que soam como você — com gancho,
-          thumbnail, descrição e comentário fixado prontos pra colar.
+          Digite a ideia do vídeo aqui embaixo. A IA gera o roteiro, a thumbnail, a descrição e
+          o comentário fixado — tudo pronto pra colar.
         </p>
-        <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
-          <Link
-            to="/auth"
-            className="inline-flex items-center gap-2 rounded-full bg-brand-gradient px-6 py-3 font-semibold text-primary-foreground shadow-glow transition hover:scale-[1.02]"
+
+        {/* Search bar — gera direto */}
+        <form
+          onSubmit={handleGenerate}
+          className="mx-auto mt-8 flex max-w-2xl flex-col gap-2 rounded-2xl border border-border bg-card/60 p-2 backdrop-blur shadow-card sm:flex-row sm:items-center"
+        >
+          <div className="flex flex-1 items-center gap-2 px-3">
+            <Search className="h-5 w-5 shrink-0 text-muted-foreground" />
+            <input
+              type="text"
+              value={topic}
+              onChange={(e) => setTopic(e.target.value)}
+              placeholder="Ex: vídeo de Roblox sobre o jogo Blox Fruits"
+              className="w-full bg-transparent py-3 text-base outline-none placeholder:text-muted-foreground/70"
+            />
+          </div>
+          <button
+            type="submit"
+            className="inline-flex items-center justify-center gap-2 rounded-xl bg-brand-gradient px-5 py-3 font-semibold text-primary-foreground shadow-glow transition hover:scale-[1.02]"
           >
             <Wand2 className="h-4 w-4" />
-            Criar conta grátis
-          </Link>
-          <a
-            href="#features"
-            className="inline-flex items-center gap-2 rounded-full border border-border bg-card/60 px-6 py-3 font-medium backdrop-blur transition hover:bg-card"
-          >
-            Ver o que faz
-          </a>
-        </div>
+            Gerar roteiro
+          </button>
+        </form>
+        <p className="mt-3 text-xs text-muted-foreground">
+          Clica em <span className="font-semibold text-foreground">Gerar roteiro</span> — a gente
+          te leva pro criador com o seu tema já preenchido.
+        </p>
 
         <div className="mx-auto mt-14 grid max-w-3xl grid-cols-3 gap-4">
           {[
@@ -92,6 +137,60 @@ function Landing() {
               <p className="mt-2 text-sm text-muted-foreground">{label}</p>
             </div>
           ))}
+        </div>
+      </section>
+
+      {/* Como funciona */}
+      <section id="como-funciona" className="container mx-auto px-6 pb-20">
+        <h2 className="text-center text-3xl font-bold sm:text-4xl">Como funciona</h2>
+        <p className="mx-auto mt-3 max-w-xl text-center text-muted-foreground">
+          3 passos. Sem complicação.
+        </p>
+
+        <div className="mx-auto mt-12 grid max-w-5xl gap-6 md:grid-cols-3">
+          {[
+            {
+              icon: UserPlus,
+              n: "1",
+              t: "Cria sua conta",
+              d: "Responde 4 perguntinhas rápidas sobre o seu canal pra IA aprender o seu estilo.",
+            },
+            {
+              icon: Pencil,
+              n: "2",
+              t: "Digita a ideia",
+              d: "Na barra de cima ou no botão de criar, descreve o vídeo que você quer fazer.",
+            },
+            {
+              icon: Sparkles,
+              n: "3",
+              t: "Recebe o roteiro",
+              d: "A IA gera o roteiro falado, thumbnail, descrição e comentário fixado — prontos.",
+            },
+          ].map((s) => (
+            <div
+              key={s.n}
+              className="relative rounded-2xl border border-border bg-card/50 p-6 backdrop-blur shadow-card"
+            >
+              <div className="absolute -top-3 left-6 inline-flex h-7 w-7 items-center justify-center rounded-full bg-brand-gradient text-xs font-bold text-primary-foreground shadow-glow">
+                {s.n}
+              </div>
+              <s.icon className="h-6 w-6 text-primary" />
+              <h3 className="mt-3 font-semibold">{s.t}</h3>
+              <p className="mt-2 text-sm text-muted-foreground">{s.d}</p>
+            </div>
+          ))}
+        </div>
+
+        <div className="mt-10 flex justify-center">
+          <Link
+            to="/auth"
+            className="inline-flex items-center gap-2 rounded-full bg-brand-gradient px-6 py-3 font-semibold text-primary-foreground shadow-glow transition hover:scale-[1.02]"
+          >
+            <Wand2 className="h-4 w-4" />
+            Criar meu primeiro roteiro
+            <ArrowRight className="h-4 w-4" />
+          </Link>
         </div>
       </section>
 
