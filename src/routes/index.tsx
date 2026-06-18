@@ -78,6 +78,9 @@ function Home() {
   const [loading, setLoading] = useState(false);
   const [script, setScript] = useState("");
   const [copied, setCopied] = useState(false);
+  const [thumbnail, setThumbnail] = useState<string | null>(null);
+  const [thumbnailFinal, setThumbnailFinal] = useState(false);
+  const [thumbLoading, setThumbLoading] = useState(false);
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -87,6 +90,8 @@ function Home() {
     }
     setLoading(true);
     setScript("");
+    setThumbnail(null);
+    setThumbnailFinal(false);
     try {
       const out = await run({ data: { topic, duration, tone, audience } });
       setScript(out.script);
@@ -98,6 +103,30 @@ function Home() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const generateThumb = async () => {
+    setThumbLoading(true);
+    setThumbnail(null);
+    setThumbnailFinal(false);
+    try {
+      await streamImage("/api/generate-thumbnail", { topic }, (url, final) => {
+        setThumbnail(url);
+        if (final) setThumbnailFinal(true);
+      });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erro ao gerar thumbnail.");
+    } finally {
+      setThumbLoading(false);
+    }
+  };
+
+  const downloadThumb = () => {
+    if (!thumbnail) return;
+    const a = document.createElement("a");
+    a.href = thumbnail;
+    a.download = "thumbnail.png";
+    a.click();
   };
 
   const copy = async () => {
