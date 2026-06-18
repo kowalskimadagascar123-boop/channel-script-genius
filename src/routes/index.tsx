@@ -317,8 +317,73 @@ function Home() {
                 {copied ? "Copiado" : "Copiar"}
               </button>
             </div>
-            <div className="prose prose-invert max-w-none prose-headings:font-display prose-headings:tracking-tight prose-h1:text-2xl prose-h2:text-xl prose-h2:mt-6 prose-h3:text-lg prose-p:leading-relaxed prose-strong:text-primary prose-li:my-1 prose-hr:border-border">
-              <ReactMarkdown remarkPlugins={[remarkGfm]}>{script}</ReactMarkdown>
+            <div className="prose prose-invert max-w-none prose-headings:font-display prose-headings:tracking-tight prose-h1:text-2xl prose-h2:text-xl prose-h2:mt-6 prose-h3:text-lg prose-p:leading-relaxed prose-strong:text-primary prose-li:my-1 prose-hr:border-border prose-a:text-primary prose-code:text-primary prose-code:before:hidden prose-code:after:hidden">
+              <ReactMarkdown
+                remarkPlugins={[remarkGfm]}
+                components={{
+                  pre: ({ children }) => <>{children}</>,
+                  code: ({ className, children, ...props }) => {
+                    const isBlock = /language-/.test(className || "") || String(children).includes("\n");
+                    if (isBlock) return <CopyableCode>{children}</CopyableCode>;
+                    return (
+                      <code className="rounded bg-muted px-1.5 py-0.5 text-sm" {...props}>
+                        {children}
+                      </code>
+                    );
+                  },
+                }}
+              >
+                {script}
+              </ReactMarkdown>
+            </div>
+
+            {/* Thumbnail generator */}
+            <div className="mt-8 rounded-2xl border border-border bg-background/40 p-5">
+              <div className="mb-4 flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <ImageIcon className="h-5 w-5 text-primary" />
+                  <h4 className="font-semibold">Thumbnail do vídeo</h4>
+                </div>
+                {thumbnail && thumbnailFinal && (
+                  <button
+                    onClick={downloadThumb}
+                    className="inline-flex items-center gap-2 rounded-full border border-border bg-card px-4 py-2 text-sm transition hover:bg-input"
+                  >
+                    <Download className="h-4 w-4" /> Baixar
+                  </button>
+                )}
+              </div>
+
+              {thumbnail ? (
+                <img
+                  src={thumbnail}
+                  alt="Thumbnail gerada"
+                  className={`w-full rounded-xl border border-border transition-[filter] duration-500 ${
+                    thumbnailFinal ? "blur-0" : "blur-xl"
+                  }`}
+                />
+              ) : (
+                <div className="flex aspect-video w-full items-center justify-center rounded-xl border border-dashed border-border bg-background/40 text-sm text-muted-foreground">
+                  Clique abaixo para gerar uma capa
+                </div>
+              )}
+
+              <button
+                onClick={generateThumb}
+                disabled={thumbLoading}
+                className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-brand-gradient px-5 py-3 font-semibold text-primary-foreground shadow-glow transition hover:scale-[1.01] disabled:opacity-70"
+              >
+                {thumbLoading ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" /> Gerando capa...
+                  </>
+                ) : (
+                  <>
+                    <ImageIcon className="h-4 w-4" />
+                    {thumbnail ? "Gerar outra" : "Gerar thumbnail com IA"}
+                  </>
+                )}
+              </button>
             </div>
           </div>
         )}
