@@ -47,7 +47,7 @@ function CopyableCode({ children }: { children: React.ReactNode }) {
   );
 }
 
-export const Route = createFileRoute("/")({
+export const Route = createFileRoute("/_authenticated/app")({
   head: () => ({
     meta: [
       { title: "RoteiroTube — Gerador de roteiros para YouTube grátis com IA" },
