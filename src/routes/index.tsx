@@ -1,12 +1,51 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { Sparkles, Wand2, Clapperboard, Loader2, Copy, Check, Youtube, Zap, Clock, Target } from "lucide-react";
+import {
+  Sparkles,
+  Wand2,
+  Clapperboard,
+  Loader2,
+  Copy,
+  Check,
+  Youtube,
+  Zap,
+  Clock,
+  Target,
+  Image as ImageIcon,
+  Download,
+} from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { generateScript } from "@/lib/script.functions";
+import { streamImage } from "@/lib/streamImage";
 import { toast } from "sonner";
 import { Toaster } from "@/components/ui/sonner";
+
+function CopyableCode({ children }: { children: React.ReactNode }) {
+  const [copied, setCopied] = useState(false);
+  const text = String(children).replace(/\n$/, "");
+  const onCopy = async () => {
+    await navigator.clipboard.writeText(text);
+    setCopied(true);
+    toast.success("Copiado!");
+    setTimeout(() => setCopied(false), 1500);
+  };
+  return (
+    <div className="group relative my-3 overflow-hidden rounded-xl border border-border bg-background/60">
+      <button
+        onClick={onCopy}
+        className="absolute right-2 top-2 inline-flex items-center gap-1 rounded-md border border-border bg-card/80 px-2 py-1 text-xs transition hover:bg-card"
+      >
+        {copied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+        {copied ? "Ok" : "Copiar"}
+      </button>
+      <pre className="overflow-x-auto p-4 pr-20 text-sm">
+        <code>{text}</code>
+      </pre>
+    </div>
+  );
+}
 
 export const Route = createFileRoute("/")({
   head: () => ({
