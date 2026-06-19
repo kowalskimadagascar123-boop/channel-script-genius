@@ -1,48 +1,93 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { getMyProfile } from "@/lib/profile.functions";
-import { supabase } from "@/integrations/supabase/client";
-import { LogOut } from "lucide-react";
 import {
-  Sparkles,
-  Wand2,
+  listConversations,
+  createConversation,
+  getMessages,
+  sendMessage,
+  deleteConversation,
+} from "@/lib/chat.functions";
+import { supabase } from "@/integrations/supabase/client";
+import {
   Clapperboard,
+  LogOut,
+  Plus,
+  Send,
   Loader2,
+  Trash2,
   Copy,
   Check,
-  Youtube,
-  Zap,
-  Clock,
-  Target,
-  Image as ImageIcon,
   Download,
+  Pencil,
+  Image as ImageIcon,
+  FileText,
+  MessageSquare,
+  Menu,
+  X,
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { generateScript } from "@/lib/script.functions";
-import { streamImage } from "@/lib/streamImage";
 import { toast } from "sonner";
 import { Toaster } from "@/components/ui/sonner";
 
-function CopyableCode({ children }: { children: React.ReactNode }) {
-  const [copied, setCopied] = useState(false);
+type Area = "script" | "thumbnail" | "description" | "comment";
+type Convo = { id: string; title: string; area: Area; updated_at: string };
+type Msg = {
+  id: string;
+  role: "user" | "assistant";
+  content: string;
+  image_url: string | null;
+  created_at: string;
+};
+
+const AREAS: { id: Area; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
+  { id: "script", label: "Roteiro", icon: Pencil },
+  { id: "thumbnail", label: "Thumbnail", icon: ImageIcon },
+  { id: "description", label: "Descrição", icon: FileText },
+  { id: "comment", label: "Comentário", icon: MessageSquare },
+];
+
+const PLACEHOLDERS: Record<Area, string> = {
+  script: "Ex: roteiro de gameplay de Roblox que prende as crianças",
+  thumbnail: "Ex: thumbnail estilo MrBeast, fundo vermelho, cara de surpresa",
+  description: "Ex: descrição pro vídeo de Roblox com link do jogo e do Discord",
+  comment: "Ex: comentário fixado com cupom DESCONTO10 e link do canal",
+};
+
+export const Route = createFileRoute("/_authenticated/app")({
+  head: () => ({
+    meta: [{ title: "RoteiroTube — Chat de criação para YouTube" }],
+  }),
+  component: AppChat,
+});
+
+function CopyButton({ text }: { text: string }) {
+  const [c, setC] = useState(false);
+  return (
+    <button
+      onClick={async () => {
+        await navigator.clipboard.writeText(text);
+        setC(true);
+        toast.success("Copiado!");
+        setTimeout(() => setC(false), 1500);
+      }}
+      className="inline-flex items-center gap-1 rounded-md border border-border bg-card/80 px-2 py-1 text-xs transition hover:bg-card"
+    >
+      {c ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+      {c ? "Ok" : "Copiar"}
+    </button>
+  );
+}
+
+function CodeBlock({ children }: { children: React.ReactNode }) {
   const text = String(children).replace(/\n$/, "");
-  const onCopy = async () => {
-    await navigator.clipboard.writeText(text);
-    setCopied(true);
-    toast.success("Copiado!");
-    setTimeout(() => setCopied(false), 1500);
-  };
   return (
     <div className="group relative my-3 overflow-hidden rounded-xl border border-border bg-background/60">
-      <button
-        onClick={onCopy}
-        className="absolute right-2 top-2 inline-flex items-center gap-1 rounded-md border border-border bg-card/80 px-2 py-1 text-xs transition hover:bg-card"
-      >
-        {copied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
-        {copied ? "Ok" : "Copiar"}
-      </button>
+      <div className="absolute right-2 top-2">
+        <CopyButton text={text} />
+      </div>
       <pre className="overflow-x-auto p-4 pr-20 text-sm">
         <code>{text}</code>
       </pre>
@@ -50,409 +95,389 @@ function CopyableCode({ children }: { children: React.ReactNode }) {
   );
 }
 
-export const Route = createFileRoute("/_authenticated/app")({
-  head: () => ({
-    meta: [
-      { title: "RoteiroTube — Gerador de roteiros para YouTube grátis com IA" },
-      {
-        name: "description",
-        content:
-          "Crie roteiros profissionais para vídeos do YouTube em segundos. Grátis, com IA, em português. Defina tema, duração e tom — receba o roteiro pronto.",
-      },
-      { property: "og:title", content: "RoteiroTube — Roteiros de YouTube grátis com IA" },
-      {
-        property: "og:description",
-        content: "Gere roteiros completos para seus vídeos do YouTube com IA, gratuitamente.",
-      },
-    ],
-  }),
-  component: Home,
-});
+function Markdown({ content }: { content: string }) {
+  return (
+    <div className="prose prose-invert max-w-none prose-headings:font-display prose-h1:text-xl prose-h2:text-lg prose-h2:mt-4 prose-h3:text-base prose-p:leading-relaxed prose-p:my-2 prose-strong:text-primary prose-li:my-0.5 prose-hr:border-border prose-a:text-primary">
+      <ReactMarkdown
+        remarkPlugins={[remarkGfm]}
+        components={{
+          pre: ({ children }) => <>{children}</>,
+          code: ({ className, children, ...props }) => {
+            const isBlock = /language-/.test(className || "") || String(children).includes("\n");
+            if (isBlock) return <CodeBlock>{children}</CodeBlock>;
+            return (
+              <code className="rounded bg-muted px-1.5 py-0.5 text-sm" {...props}>
+                {children}
+              </code>
+            );
+          },
+        }}
+      >
+        {content}
+      </ReactMarkdown>
+    </div>
+  );
+}
 
-type Duration = "short" | "medium" | "long";
-type Tone = "casual" | "educativo" | "energetico" | "inspirador" | "humoristico";
-
-function Home() {
-  const run = useServerFn(generateScript);
+function AppChat() {
   const navigate = useNavigate();
   const loadProfile = useServerFn(getMyProfile);
-  const [topic, setTopic] = useState("");
-  const [audience, setAudience] = useState("");
-  const [duration, setDuration] = useState<Duration>("medium");
-  const [tone, setTone] = useState<Tone>("casual");
-  const [loading, setLoading] = useState(false);
-  const [script, setScript] = useState("");
-  const [copied, setCopied] = useState(false);
+  const listFn = useServerFn(listConversations);
+  const createFn = useServerFn(createConversation);
+  const msgsFn = useServerFn(getMessages);
+  const sendFn = useServerFn(sendMessage);
+  const delFn = useServerFn(deleteConversation);
 
+  const [area, setArea] = useState<Area>("script");
+  const [convos, setConvos] = useState<Convo[]>([]);
+  const [activeId, setActiveId] = useState<string | null>(null);
+  const [messages, setMessages] = useState<Msg[]>([]);
+  const [input, setInput] = useState("");
+  const [sending, setSending] = useState(false);
+  const [loadingConvo, setLoadingConvo] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  // Initial: profile check
   useEffect(() => {
     loadProfile().then((p) => {
       if (!p?.onboarding_completed) navigate({ to: "/onboarding" });
     });
-    if (typeof window !== "undefined") {
-      const pending = sessionStorage.getItem("pendingTopic");
-      if (pending) {
-        setTopic(pending);
-        sessionStorage.removeItem("pendingTopic");
+  }, [loadProfile, navigate]);
+
+  // Load conversations when area changes
+  useEffect(() => {
+    let mounted = true;
+    listFn({ data: { area } }).then(async (rows) => {
+      if (!mounted) return;
+      const list = rows as Convo[];
+      setConvos(list);
+      if (list.length > 0) {
+        setActiveId(list[0].id);
+      } else {
+        // Auto-create first conversation
+        const c = (await createFn({ data: { area } })) as Convo;
+        setConvos([c]);
+        setActiveId(c.id);
+      }
+    });
+    return () => {
+      mounted = false;
+    };
+  }, [area, listFn, createFn]);
+
+  // Load messages when active changes
+  useEffect(() => {
+    if (!activeId) {
+      setMessages([]);
+      return;
+    }
+    setLoadingConvo(true);
+    msgsFn({ data: { conversationId: activeId } })
+      .then((rows) => setMessages(rows as Msg[]))
+      .finally(() => setLoadingConvo(false));
+  }, [activeId, msgsFn]);
+
+  // Pending topic from landing
+  useEffect(() => {
+    if (!activeId || messages.length > 0) return;
+    if (typeof window === "undefined") return;
+    const pending = sessionStorage.getItem("pendingTopic");
+    if (pending) {
+      sessionStorage.removeItem("pendingTopic");
+      setInput(pending);
+      setTimeout(() => inputRef.current?.focus(), 50);
+    }
+  }, [activeId, messages.length]);
+
+  // Autoscroll
+  useEffect(() => {
+    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
+  }, [messages, sending]);
+
+  // Keep input focused
+  useEffect(() => {
+    inputRef.current?.focus();
+  }, [activeId, area]);
+
+  const newChat = async () => {
+    const c = (await createFn({ data: { area } })) as Convo;
+    setConvos((cs) => [c, ...cs]);
+    setActiveId(c.id);
+    setMessages([]);
+    setSidebarOpen(false);
+  };
+
+  const removeConvo = async (id: string) => {
+    if (!confirm("Apagar essa conversa?")) return;
+    await delFn({ data: { conversationId: id } });
+    const next = convos.filter((c) => c.id !== id);
+    setConvos(next);
+    if (activeId === id) {
+      if (next.length > 0) setActiveId(next[0].id);
+      else {
+        const c = (await createFn({ data: { area } })) as Convo;
+        setConvos([c]);
+        setActiveId(c.id);
       }
     }
-  }, [loadProfile, navigate]);
+  };
+
+  const handleSend = async () => {
+    const text = input.trim();
+    if (!text || !activeId || sending) return;
+    setSending(true);
+    const optimistic: Msg = {
+      id: "tmp-" + Date.now(),
+      role: "user",
+      content: text,
+      image_url: null,
+      created_at: new Date().toISOString(),
+    };
+    setMessages((m) => [...m, optimistic]);
+    setInput("");
+    try {
+      const out = await sendFn({ data: { conversationId: activeId, content: text } });
+      const assistant = (out as { assistant: Msg }).assistant;
+      setMessages((m) => [...m, assistant]);
+      // Update convo title in sidebar after first msg
+      setConvos((cs) =>
+        cs.map((c) =>
+          c.id === activeId && c.title === "Nova conversa"
+            ? { ...c, title: text.slice(0, 50) }
+            : c,
+        ),
+      );
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erro ao enviar.");
+      setMessages((m) => m.filter((x) => x.id !== optimistic.id));
+      setInput(text);
+    } finally {
+      setSending(false);
+      setTimeout(() => inputRef.current?.focus(), 50);
+    }
+  };
 
   const logout = async () => {
     await supabase.auth.signOut();
     navigate({ to: "/" });
   };
 
-  const [thumbnail, setThumbnail] = useState<string | null>(null);
-  const [thumbnailFinal, setThumbnailFinal] = useState(false);
-  const [thumbLoading, setThumbLoading] = useState(false);
-
-  const onSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (topic.trim().length < 3) {
-      toast.error("Descreva melhor o tema do vídeo.");
-      return;
-    }
-    setLoading(true);
-    setScript("");
-    setThumbnail(null);
-    setThumbnailFinal(false);
-    try {
-      const out = await run({ data: { topic, duration, tone, audience } });
-      setScript(out.script);
-      setTimeout(() => {
-        document.getElementById("roteiro")?.scrollIntoView({ behavior: "smooth", block: "start" });
-      }, 60);
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Erro ao gerar roteiro.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const generateThumb = async () => {
-    setThumbLoading(true);
-    setThumbnail(null);
-    setThumbnailFinal(false);
-    try {
-      await streamImage("/api/generate-thumbnail", { topic }, (url, final) => {
-        setThumbnail(url);
-        if (final) setThumbnailFinal(true);
-      });
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Erro ao gerar thumbnail.");
-    } finally {
-      setThumbLoading(false);
-    }
-  };
-
-  const downloadThumb = () => {
-    if (!thumbnail) return;
-    const a = document.createElement("a");
-    a.href = thumbnail;
-    a.download = "thumbnail.png";
-    a.click();
-  };
-
-  const copy = async () => {
-    await navigator.clipboard.writeText(script);
-    setCopied(true);
-    toast.success("Roteiro copiado!");
-    setTimeout(() => setCopied(false), 2000);
-  };
-
   return (
-    <div className="min-h-screen bg-hero">
+    <div className="flex h-screen w-full overflow-hidden bg-hero text-foreground">
       <Toaster richColors theme="dark" position="top-center" />
 
-      {/* Nav */}
-      <header className="container mx-auto flex items-center justify-between px-6 py-6">
-        <div className="flex items-center gap-2">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand-gradient shadow-glow">
-            <Clapperboard className="h-5 w-5 text-primary-foreground" />
+      {/* Sidebar */}
+      <aside
+        className={`${
+          sidebarOpen ? "translate-x-0" : "-translate-x-full"
+        } fixed inset-y-0 left-0 z-40 flex w-72 flex-col border-r border-border bg-card/95 backdrop-blur transition-transform md:relative md:translate-x-0`}
+      >
+        <div className="flex items-center justify-between border-b border-border px-4 py-4">
+          <div className="flex items-center gap-2">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-gradient shadow-glow">
+              <Clapperboard className="h-4 w-4 text-primary-foreground" />
+            </div>
+            <span className="font-display text-base font-semibold">RoteiroTube</span>
           </div>
-          <span className="font-display text-lg font-semibold tracking-tight">RoteiroTube</span>
+          <button
+            className="md:hidden rounded-md p-1 hover:bg-muted"
+            onClick={() => setSidebarOpen(false)}
+          >
+            <X className="h-5 w-5" />
+          </button>
         </div>
+
+        {/* Area tabs */}
+        <div className="grid grid-cols-2 gap-1.5 border-b border-border p-3">
+          {AREAS.map((a) => {
+            const Icon = a.icon;
+            const active = area === a.id;
+            return (
+              <button
+                key={a.id}
+                onClick={() => setArea(a.id)}
+                className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-xs font-medium transition ${
+                  active
+                    ? "border-primary bg-primary/15 text-foreground"
+                    : "border-border bg-input/30 text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                <Icon className="h-3.5 w-3.5" />
+                {a.label}
+              </button>
+            );
+          })}
+        </div>
+
+        <button
+          onClick={newChat}
+          className="mx-3 mt-3 inline-flex items-center justify-center gap-2 rounded-lg bg-brand-gradient px-3 py-2.5 text-sm font-semibold text-primary-foreground shadow-glow transition hover:scale-[1.01]"
+        >
+          <Plus className="h-4 w-4" /> Nova conversa
+        </button>
+
+        <div className="flex-1 overflow-y-auto p-3">
+          <div className="space-y-1">
+            {convos.map((c) => (
+              <div
+                key={c.id}
+                className={`group flex items-center gap-1 rounded-lg border px-2 py-2 text-sm transition ${
+                  activeId === c.id
+                    ? "border-primary/40 bg-primary/10"
+                    : "border-transparent hover:bg-muted/50"
+                }`}
+              >
+                <button
+                  onClick={() => {
+                    setActiveId(c.id);
+                    setSidebarOpen(false);
+                  }}
+                  className="flex-1 truncate text-left"
+                >
+                  {c.title || "Nova conversa"}
+                </button>
+                <button
+                  onClick={() => removeConvo(c.id)}
+                  className="opacity-0 group-hover:opacity-100 rounded p-1 hover:bg-destructive/20 hover:text-destructive transition"
+                  aria-label="Apagar"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+
         <button
           onClick={logout}
-          className="inline-flex items-center gap-2 rounded-full border border-border bg-card/60 px-4 py-2 text-sm font-medium backdrop-blur transition hover:bg-card"
+          className="m-3 inline-flex items-center justify-center gap-2 rounded-lg border border-border bg-card/60 px-3 py-2 text-sm transition hover:bg-card"
         >
-          <LogOut className="h-4 w-4" />
-          Sair
+          <LogOut className="h-4 w-4" /> Sair
         </button>
-      </header>
+      </aside>
 
-      {/* Hero */}
-      <section className="container mx-auto px-6 pt-12 pb-16 text-center">
-        <div className="mx-auto inline-flex items-center gap-2 rounded-full border border-border bg-card/60 px-4 py-1.5 text-xs font-medium text-muted-foreground backdrop-blur">
-          <Sparkles className="h-3.5 w-3.5 text-primary" />
-          Personalizado pro seu canal · IA em português
-        </div>
-        <h1 className="mx-auto mt-6 max-w-4xl text-5xl font-bold leading-[1.05] sm:text-6xl md:text-7xl">
-          Roteiros de YouTube <span className="text-brand-gradient">prontos em segundos</span>
-        </h1>
-        <p className="mx-auto mt-6 max-w-2xl text-lg text-muted-foreground">
-          Descreva sua ideia, escolha duração e tom — nossa IA escreve um roteiro completo com gancho,
-          desenvolvimento, CTA e até sugestões de thumbnail.
-        </p>
-        <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
-          <a
-            href="#gerador"
-            className="inline-flex items-center gap-2 rounded-full bg-brand-gradient px-6 py-3 font-semibold text-primary-foreground shadow-glow transition hover:scale-[1.02]"
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 z-30 bg-black/50 md:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
+      {/* Main chat */}
+      <main className="flex flex-1 flex-col overflow-hidden">
+        <header className="flex items-center gap-3 border-b border-border bg-card/40 px-4 py-3 backdrop-blur">
+          <button
+            className="md:hidden rounded-md p-1.5 hover:bg-muted"
+            onClick={() => setSidebarOpen(true)}
           >
-            <Wand2 className="h-4 w-4" />
-            Gerar meu roteiro grátis
-          </a>
-          <a
-            href="#como-funciona"
-            className="inline-flex items-center gap-2 rounded-full border border-border bg-card/60 px-6 py-3 font-medium backdrop-blur transition hover:bg-card"
-          >
-            Como funciona
-          </a>
-        </div>
+            <Menu className="h-5 w-5" />
+          </button>
+          <h1 className="font-display text-base font-semibold">
+            {AREAS.find((a) => a.id === area)?.label}
+          </h1>
+          <span className="text-xs text-muted-foreground">
+            · Converse com a IA pra criar e ajustar
+          </span>
+        </header>
 
-        {/* Stats */}
-        <div className="mx-auto mt-14 grid max-w-3xl grid-cols-3 gap-4">
-          {[
-            { icon: Zap, label: "Em 10 segundos" },
-            { icon: Youtube, label: "Otimizado p/ YouTube" },
-            { icon: Target, label: "Ganchos que prendem" },
-          ].map(({ icon: Icon, label }) => (
-            <div
-              key={label}
-              className="rounded-2xl border border-border bg-card/40 p-4 backdrop-blur shadow-card"
-            >
-              <Icon className="mx-auto h-5 w-5 text-primary" />
-              <p className="mt-2 text-sm text-muted-foreground">{label}</p>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* Generator */}
-      <section id="gerador" className="container mx-auto px-6 pb-20">
-        <div className="mx-auto max-w-3xl rounded-3xl border border-border bg-card/70 p-6 backdrop-blur shadow-card sm:p-10">
-          <div className="mb-6 flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-gradient">
-              <Wand2 className="h-5 w-5 text-primary-foreground" />
-            </div>
-            <div>
-              <h2 className="text-2xl font-bold">Gerador de Roteiro</h2>
-              <p className="text-sm text-muted-foreground">Preencha abaixo e receba seu roteiro.</p>
-            </div>
-          </div>
-
-          <form onSubmit={onSubmit} className="space-y-5">
-            <div>
-              <label className="mb-2 block text-sm font-medium">Tema do vídeo *</label>
-              <textarea
-                value={topic}
-                onChange={(e) => setTopic(e.target.value)}
-                placeholder="Ex: 5 dicas para começar a investir do zero em 2026"
-                rows={3}
-                className="w-full resize-none rounded-xl border border-input bg-input/40 px-4 py-3 text-foreground placeholder:text-muted-foreground/70 outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/30"
-              />
-            </div>
-
-            <div>
-              <label className="mb-2 block text-sm font-medium">Público-alvo (opcional)</label>
-              <input
-                value={audience}
-                onChange={(e) => setAudience(e.target.value)}
-                placeholder="Ex: iniciantes, mães, devs..."
-                className="w-full rounded-xl border border-input bg-input/40 px-4 py-3 outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/30"
-              />
-            </div>
-
-            <div className="grid gap-5 sm:grid-cols-2">
-              <div>
-                <label className="mb-2 block text-sm font-medium">
-                  <Clock className="mr-1 inline h-3.5 w-3.5" /> Duração
-                </label>
-                <div className="grid grid-cols-3 gap-2">
-                  {(
-                    [
-                      { v: "short", l: "Curto" },
-                      { v: "medium", l: "Médio" },
-                      { v: "long", l: "Longo" },
-                    ] as { v: Duration; l: string }[]
-                  ).map((o) => (
-                    <button
-                      key={o.v}
-                      type="button"
-                      onClick={() => setDuration(o.v)}
-                      className={`rounded-xl border px-3 py-2.5 text-sm font-medium transition ${
-                        duration === o.v
-                          ? "border-primary bg-primary/15 text-foreground"
-                          : "border-border bg-input/30 text-muted-foreground hover:text-foreground"
-                      }`}
-                    >
-                      {o.l}
-                    </button>
-                  ))}
-                </div>
+        <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-6 sm:px-6">
+          <div className="mx-auto max-w-3xl space-y-6">
+            {loadingConvo && (
+              <div className="flex justify-center py-8">
+                <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
               </div>
-
-              <div>
-                <label className="mb-2 block text-sm font-medium">Tom</label>
-                <select
-                  value={tone}
-                  onChange={(e) => setTone(e.target.value as Tone)}
-                  className="w-full rounded-xl border border-input bg-input/40 px-4 py-2.5 outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/30"
-                >
-                  <option value="casual">Casual</option>
-                  <option value="educativo">Educativo</option>
-                  <option value="energetico">Energético</option>
-                  <option value="inspirador">Inspirador</option>
-                  <option value="humoristico">Humorístico</option>
-                </select>
+            )}
+            {!loadingConvo && messages.length === 0 && (
+              <div className="rounded-2xl border border-border bg-card/50 p-6 text-center">
+                <h2 className="font-display text-lg font-semibold">
+                  Como posso te ajudar com {AREAS.find((a) => a.id === area)?.label.toLowerCase()}?
+                </h2>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  Descreva sua ideia abaixo. Depois você pode pedir pra modificar, encurtar, trocar o
+                  tom — eu lembro do contexto.
+                </p>
               </div>
-            </div>
+            )}
 
-            <button
-              type="submit"
-              disabled={loading}
-              className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-brand-gradient px-6 py-3.5 font-semibold text-primary-foreground shadow-glow transition hover:scale-[1.01] disabled:opacity-70"
-            >
-              {loading ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin" /> Criando seu roteiro...
-                </>
-              ) : (
-                <>
-                  <Sparkles className="h-4 w-4" /> Gerar roteiro grátis
-                </>
-              )}
-            </button>
-          </form>
-        </div>
-
-        {/* Result */}
-        {script && (
-          <div
-            id="roteiro"
-            className="mx-auto mt-8 max-w-3xl rounded-3xl border border-border bg-card/70 p-6 backdrop-blur shadow-card sm:p-10"
-          >
-            <div className="mb-4 flex items-center justify-between">
-              <h3 className="text-xl font-bold">Seu roteiro</h3>
-              <button
-                onClick={copy}
-                className="inline-flex items-center gap-2 rounded-full border border-border bg-input/40 px-4 py-2 text-sm transition hover:bg-input"
-              >
-                {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-                {copied ? "Copiado" : "Copiar"}
-              </button>
-            </div>
-            <div className="prose prose-invert max-w-none prose-headings:font-display prose-headings:tracking-tight prose-h1:text-2xl prose-h2:text-xl prose-h2:mt-6 prose-h3:text-lg prose-p:leading-relaxed prose-strong:text-primary prose-li:my-1 prose-hr:border-border prose-a:text-primary prose-code:text-primary prose-code:before:hidden prose-code:after:hidden">
-              <ReactMarkdown
-                remarkPlugins={[remarkGfm]}
-                components={{
-                  pre: ({ children }) => <>{children}</>,
-                  code: ({ className, children, ...props }) => {
-                    const isBlock = /language-/.test(className || "") || String(children).includes("\n");
-                    if (isBlock) return <CopyableCode>{children}</CopyableCode>;
-                    return (
-                      <code className="rounded bg-muted px-1.5 py-0.5 text-sm" {...props}>
-                        {children}
-                      </code>
-                    );
-                  },
-                }}
-              >
-                {script}
-              </ReactMarkdown>
-            </div>
-
-            {/* Thumbnail generator */}
-            <div className="mt-8 rounded-2xl border border-border bg-background/40 p-5">
-              <div className="mb-4 flex items-center justify-between gap-3">
-                <div className="flex items-center gap-2">
-                  <ImageIcon className="h-5 w-5 text-primary" />
-                  <h4 className="font-semibold">Thumbnail do vídeo</h4>
-                </div>
-                {thumbnail && thumbnailFinal && (
-                  <button
-                    onClick={downloadThumb}
-                    className="inline-flex items-center gap-2 rounded-full border border-border bg-card px-4 py-2 text-sm transition hover:bg-input"
-                  >
-                    <Download className="h-4 w-4" /> Baixar
-                  </button>
-                )}
-              </div>
-
-              {thumbnail ? (
-                <img
-                  src={thumbnail}
-                  alt="Thumbnail gerada"
-                  className={`w-full rounded-xl border border-border transition-[filter] duration-500 ${
-                    thumbnailFinal ? "blur-0" : "blur-xl"
-                  }`}
-                />
-              ) : (
-                <div className="flex aspect-video w-full items-center justify-center rounded-xl border border-dashed border-border bg-background/40 text-sm text-muted-foreground">
-                  Clique abaixo para gerar uma capa
-                </div>
-              )}
-
-              <button
-                onClick={generateThumb}
-                disabled={thumbLoading}
-                className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-brand-gradient px-5 py-3 font-semibold text-primary-foreground shadow-glow transition hover:scale-[1.01] disabled:opacity-70"
-              >
-                {thumbLoading ? (
-                  <>
-                    <Loader2 className="h-4 w-4 animate-spin" /> Gerando capa...
-                  </>
+            {messages.map((m) => (
+              <div key={m.id} className={m.role === "user" ? "flex justify-end" : ""}>
+                {m.role === "user" ? (
+                  <div className="max-w-[85%] rounded-2xl bg-primary px-4 py-2.5 text-primary-foreground">
+                    <p className="whitespace-pre-wrap text-sm leading-relaxed">{m.content}</p>
+                  </div>
                 ) : (
-                  <>
-                    <ImageIcon className="h-4 w-4" />
-                    {thumbnail ? "Gerar outra" : "Gerar thumbnail com IA"}
-                  </>
+                  <div className="space-y-3">
+                    {m.image_url && (
+                      <div className="rounded-2xl border border-border bg-background/40 p-3">
+                        <img
+                          src={m.image_url}
+                          alt="Thumbnail"
+                          className="w-full rounded-xl border border-border"
+                        />
+                        <a
+                          href={m.image_url}
+                          download="thumbnail.png"
+                          className="mt-3 inline-flex items-center gap-2 rounded-full border border-border bg-card px-4 py-2 text-sm transition hover:bg-input"
+                        >
+                          <Download className="h-4 w-4" /> Baixar
+                        </a>
+                      </div>
+                    )}
+                    {m.content && <Markdown content={m.content} />}
+                  </div>
+                )}
+              </div>
+            ))}
+
+            {sending && (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                {area === "thumbnail" ? "Gerando imagem..." : "Pensando..."}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Composer */}
+        <div className="border-t border-border bg-card/40 px-4 py-3 backdrop-blur sm:px-6">
+          <div className="mx-auto max-w-3xl">
+            <div className="flex items-end gap-2 rounded-2xl border border-border bg-input/40 p-2 focus-within:border-ring focus-within:ring-2 focus-within:ring-ring/30">
+              <textarea
+                ref={inputRef}
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    handleSend();
+                  }
+                }}
+                placeholder={PLACEHOLDERS[area]}
+                rows={1}
+                disabled={sending}
+                className="max-h-40 min-h-[40px] flex-1 resize-none bg-transparent px-2 py-2 text-sm outline-none placeholder:text-muted-foreground/70 disabled:opacity-60"
+              />
+              <button
+                onClick={handleSend}
+                disabled={sending || !input.trim()}
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand-gradient text-primary-foreground shadow-glow transition hover:scale-[1.04] disabled:opacity-50"
+                aria-label="Enviar"
+              >
+                {sending ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Send className="h-4 w-4" />
                 )}
               </button>
             </div>
+            <p className="mt-2 text-center text-xs text-muted-foreground">
+              Enter envia · Shift+Enter quebra linha
+            </p>
           </div>
-        )}
-      </section>
-
-      {/* How it works */}
-      <section id="como-funciona" className="container mx-auto px-6 pb-24">
-        <h2 className="text-center text-3xl font-bold sm:text-4xl">Como funciona</h2>
-        <p className="mx-auto mt-3 max-w-xl text-center text-muted-foreground">
-          Três passos simples para sair da ideia ao roteiro pronto para gravar.
-        </p>
-        <div className="mx-auto mt-12 grid max-w-5xl gap-6 md:grid-cols-3">
-          {[
-            {
-              n: "01",
-              t: "Descreva sua ideia",
-              d: "Diga o tema do vídeo e, se quiser, o público que vai assistir.",
-            },
-            {
-              n: "02",
-              t: "Escolha o formato",
-              d: "Selecione a duração e o tom que combinam com o seu canal.",
-            },
-            {
-              n: "03",
-              t: "Receba e grave",
-              d: "Roteiro completo com gancho, blocos, CTA e ideias de thumbnail.",
-            },
-          ].map((s) => (
-            <div
-              key={s.n}
-              className="rounded-2xl border border-border bg-card/50 p-6 backdrop-blur shadow-card"
-            >
-              <div className="text-brand-gradient font-display text-3xl font-bold">{s.n}</div>
-              <h3 className="mt-3 text-lg font-semibold">{s.t}</h3>
-              <p className="mt-2 text-sm text-muted-foreground">{s.d}</p>
-            </div>
-          ))}
         </div>
-      </section>
-
-      <footer className="border-t border-border/60 py-8 text-center text-sm text-muted-foreground">
-        Feito com <span className="text-primary">♥</span> para criadores · RoteiroTube
-      </footer>
+      </main>
     </div>
   );
 }
