@@ -157,7 +157,7 @@ export const sendMessage = createServerFn({ method: "POST" })
     // Load profile
     const { data: profile } = await context.supabase
       .from("profiles")
-      .select("channel_category, content_style, target_audience, preferred_tone, display_name")
+      .select("channel_category, content_style, target_audience, preferred_tone, display_name, channel_analysis")
       .eq("id", context.userId)
       .maybeSingle();
 
