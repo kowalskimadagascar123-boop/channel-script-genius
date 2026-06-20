@@ -1,10 +1,10 @@
-import { createFileRoute, useNavigate, redirect } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { getMyProfile, saveOnboarding } from "@/lib/profile.functions";
+import { getMyProfile, saveOnboarding, analyzeChannel } from "@/lib/profile.functions";
 import { toast } from "sonner";
 import { Toaster } from "@/components/ui/sonner";
-import { Loader2, ArrowRight, Check, Clapperboard } from "lucide-react";
+import { Loader2, ArrowRight, Check, Clapperboard, Youtube, Sparkles } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/onboarding")({
   component: Onboarding,
