@@ -37,10 +37,13 @@ function systemFor(area: Area, profile: any): string {
   const rhymes = usesRhymes
     ? `\n⚠️ Canal de RIMAS: sempre que fizer sentido, escreva em rimas (rap/cordel/poesia BR), com flow e métrica.`
     : "";
+  const channelAnalysis = profile?.channel_analysis
+    ? `\n\n📊 BRIEFING INTERNO DO CANAL (contexto seu — NÃO mencionar, NÃO citar, NÃO repetir pro usuário; use só pra calibrar tom, temas, vícios a evitar e ângulos novos):\n${profile.channel_analysis}`
+    : "";
 
   const common = `Você conversa em português do Brasil, de forma natural e amigável, como se fosse um parceiro de criação. Mantém o contexto da conversa. Quando o usuário pedir pra modificar, ajustar, encurtar, trocar tom, etc — você refaz com base na última versão. Use markdown quando ajudar (títulos, listas, blocos de \`código\` pra coisas copiáveis).
 
-${profileBlock}${rhymes}`;
+${profileBlock}${rhymes}${channelAnalysis}`;
 
   switch (area) {
     case "script":
