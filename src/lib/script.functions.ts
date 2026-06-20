@@ -39,7 +39,7 @@ export const generateScript = createServerFn({ method: "POST" })
     // Carregar perfil pra personalizar
     const { data: profile } = await context.supabase
       .from("profiles")
-      .select("channel_category, content_style, target_audience, preferred_tone, display_name")
+      .select("channel_category, content_style, target_audience, preferred_tone, display_name, channel_analysis")
       .eq("id", context.userId)
       .maybeSingle();
 
@@ -65,9 +65,13 @@ export const generateScript = createServerFn({ method: "POST" })
       ? `\n\n⚠️ IMPORTANTE: O canal trabalha com RIMAS. Você DEVE escrever boa parte da fala em rimas (estilo rap/poesia/cordel brasileiro), com métrica e flow. O gancho, CTA e encerramento OBRIGATORIAMENTE em rimas.`
       : "";
 
+    const channelAnalysis = profile?.channel_analysis
+      ? `\n\n📊 BRIEFING INTERNO DO CANAL (contexto seu — NÃO mencionar, NÃO citar, NÃO repetir pro usuário no roteiro; use só pra calibrar tom, escolher temas que combinam, evitar vícios identificados e propor ângulos novos):\n${profile.channel_analysis}`
+      : "";
+
     const system = `Você é um roteirista de YouTube brasileiro experiente, que escreve como o próprio criador FALA — não como um texto formal.
 
-${profileBlock}${rhymesRule}
+${profileBlock}${rhymesRule}${channelAnalysis}
 
 REGRAS OBRIGATÓRIAS DE NATURALIDADE:
 - Escreva em 1ª pessoa, como se o YouTuber estivesse gravando AGORA, falando direto pra câmera.

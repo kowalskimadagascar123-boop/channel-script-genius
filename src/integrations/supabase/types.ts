@@ -81,6 +81,7 @@ export type Database = {
       }
       profiles: {
         Row: {
+          channel_analysis: string | null
           channel_category: string | null
           content_style: string | null
           created_at: string
@@ -90,8 +91,10 @@ export type Database = {
           preferred_tone: string | null
           target_audience: string | null
           updated_at: string
+          youtube_channel_url: string | null
         }
         Insert: {
+          channel_analysis?: string | null
           channel_category?: string | null
           content_style?: string | null
           created_at?: string
@@ -101,8 +104,10 @@ export type Database = {
           preferred_tone?: string | null
           target_audience?: string | null
           updated_at?: string
+          youtube_channel_url?: string | null
         }
         Update: {
+          channel_analysis?: string | null
           channel_category?: string | null
           content_style?: string | null
           created_at?: string
@@ -112,6 +117,7 @@ export type Database = {
           preferred_tone?: string | null
           target_audience?: string | null
           updated_at?: string
+          youtube_channel_url?: string | null
         }
         Relationships: []
       }
